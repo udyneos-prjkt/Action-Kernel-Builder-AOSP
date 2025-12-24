@@ -42,7 +42,7 @@ jobs:
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
       with:
-        swap-size-gb: 32
+        swap-size-gb: 25
     # Install repo tool in case it was not yet installed
 
     - name: Build Environment
@@ -71,12 +71,49 @@ jobs:
         git config --global user.name "${{ github.actor }}"
         git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
         repo init --depth=1 -u ${{ inputs.MANIFEST_URL }} -b ${{ inputs.MANIFEST_BRANCH }}
-        repo sync
+        repo sync 2>&1 | tee build.log
     # Starts the compiling process of android kernel
-    - name: Build Kernel
+    - name: Setup Compiler Toolchain
       run: |
-        cd android
-        BUILD_CONFIG="${{ inputs.BUILD_CONFIG }}" build/build.sh 2>&1 | tee build.log
+                  if command -v clang &> /dev/null; then
+                     echo "✓ System Clang found: $(clang --version | head -n1)"
+    
+                   if command -v gcc &> /dev/null; then
+                      echo "✓ System GCC found: $(gcc --version | head -n1)"
+                      echo "Using system compilers"
+                      exit 0
+                   fi
+                  fi
+    
+                  echo "⚠ System compiler not found or incomplete. Installing Proton Clang..."
+    
+                   mkdir -p ~/toolchains
+                   cd ~/toolchains
+    
+                   echo "Downloading Proton Clang..."
+                  wget -q https://github.com/kdrag0n/proton-clang/archive/refs/heads/master.zip -O proton-clang.zip
+                  unzip -q proton-clang.zip
+                  mv proton-clang-master proton-clang
+                  rm proton-clang.zip
+                  PROTON_CLANG_PATH="$HOME/toolchains/proton-clang/bin"
+                  echo "PROTON_CLANG_PATH=$PROTON_CLANG_PATH" >> $GITHUB_ENV
+                  echo "PATH=$PROTON_CLANG_PATH:$PATH" >> $GITHUB_ENV
+                  echo "Proton Clang version:"
+                  $PROTON_CLANG_PATH/clang --version | head -n2
+                  echo "✓ Proton Clang setup complete"
+  
+    - name: Build Kernel
+      if: env.PROTON_CLANG_PATH != ''
+      run: |
+         echo "Configuring build environment for Proton Clang..."
+         sudo ln -sf ${{ env.PROTON_CLANG_PATH }}/aarch64-linux-gnu-ld /usr/bin/aarch64-linux-gnu-ld 2>/dev/null || true
+         sudo ln -sf ${{ env.PROTON_CLANG_PATH }}/ld.lld /usr/bin/ld.lld 2>/dev/null || true
+         echo "CLANG_PATH=${{ env.PROTON_CLANG_PATH }}/clang" >> $GITHUB_ENV
+         echo "CLANG_BIN=${{ env.PROTON_CLANG_PATH }}" >> $GITHUB_ENV
+         echo $PATH
+         clang -v
+         cd android
+         BUILD_CONFIG="${{ inputs.BUILD_CONFIG }}" build/build.sh 2>&1 | tee build.log
     # Check if the out directory consist of target kernel image
     - name: Setup kernel
       continue-on-error: true
