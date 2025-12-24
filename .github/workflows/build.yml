@@ -24,115 +24,208 @@ on:
         type: boolean
         required: false
         default: false
+      MAKE_CLEAN:
+        description: 'Run make clean before building'
+        type: boolean
+        required: false
+        default: true
 
 jobs:
   build:
-  #  if: github.event.repository.owner.id == github.event.sender.id
     runs-on: ubuntu-24.04
+    timeout-minutes: 120
     permissions:
       contents: write
+    
     steps:
-    # This action checks-out your repository under $GITHUB_WORKSPACE, so your workflow can access it.
-    - name: Checkout
+    - name: Checkout Repository
       uses: actions/checkout@v4
-    # Install necessary packages for building android kernel
-    - name: Cleanup
-      uses: rokibhasansagar/slimhub_actions@main
-      
+      with:
+        fetch-depth: 1
+
+    - name: Setup Build Environment
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y \
+          bc \
+          bison \
+          build-essential \
+          cpio \
+          curl \
+          flex \
+          gcc-aarch64-linux-gnu \
+          gcc-arm-linux-gnueabihf \
+          libssl-dev \
+          libelf-dev \
+          lz4 \
+          lzop \
+          rsync \
+          device-tree-compiler \
+          python3 \
+          git \
+          zip \
+          unzip \
+          kmod
+        sudo apt-get clean
+
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
       with:
-        swap-size-gb: 25
-    # Install repo tool in case it was not yet installed
+        swap-size-gb: 16
 
-    - name: Build Environment
-      run: |
-        sudo apt update -y
-        sudo apt install bison flex rsync bison device-tree-compiler bc -y
-        
     - name: Install Repo Tool
       run: |
+        mkdir -p ~/bin
+        curl -sSL https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        sudo ln -sf ~/bin/repo /usr/local/bin/repo
+        echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+        source ~/.bashrc
+
+    - name: Configure Git
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
         git config --global color.ui false
-        if ! command -v repo &> /dev/null; then
-            echo "'repo' command not found. Installing..."
-            mkdir -p ~/bin  # Create bin directory if it doesn't exist
-            curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-            chmod a+x ~/bin/repo
-            sudo ln -sf ~/bin/repo /usr/bin/repo
-            echo "'repo' command installed successfully."
-        else
-            echo "'repo' command already exists."
+        git config --global core.compression 9
+
+    - name: Initialize and Sync Repository
+      run: |
+        mkdir -p kernel_build
+        cd kernel_build
+        
+        echo "Initializing repo with manifest: ${{ inputs.MANIFEST_URL }}"
+        repo init \
+          --depth=1 \
+          --no-repo-verify \
+          -u "${{ inputs.MANIFEST_URL }}" \
+          -b "${{ inputs.MANIFEST_BRANCH }}"
+        
+        echo "Syncing repositories..."
+        repo sync \
+          --current-branch \
+          --no-tags \
+          --no-clone-bundle \
+          --optimized-fetch \
+          --prune \
+          -j$(nproc --all) || {
+            echo "First sync failed, retrying with force sync..."
+            repo sync \
+              --force-sync \
+              --no-tags \
+              --no-clone-bundle \
+              -j$(nproc --all)
+          }
+
+    - name: Clean Build Directory
+      if: inputs.MAKE_CLEAN == true
+      run: |
+        cd kernel_build
+        if [ -f "build/build.sh" ]; then
+          BUILD_CONFIG="${{ inputs.BUILD_CONFIG }}" build/build.sh --make clean || true
         fi
-    # Initial the kernel manifest then sync after
-    - name: Initialize Manifest and Sync
-      run: |
-        mkdir -p android
-        cd android
-        git config --global user.name "${{ github.actor }}"
-        git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
-        repo init --depth=1 -u ${{ inputs.MANIFEST_URL }} -b ${{ inputs.MANIFEST_BRANCH }}
-        repo sync 2>&1 | tee build.log
-    # Starts the compiling process of android kernel
-    - name: Setup Compiler Toolchain
-      run: |
-                  if command -v clang &> /dev/null; then
-                     echo "✓ System Clang found: $(clang --version | head -n1)"
-    
-                   if command -v gcc &> /dev/null; then
-                      echo "✓ System GCC found: $(gcc --version | head -n1)"
-                      echo "Using system compilers"
-                      exit 0
-                   fi
-                  fi
-    
-                  echo "⚠ System compiler not found or incomplete. Installing Proton Clang..."
-    
-                   mkdir -p ~/toolchains
-                   cd ~/toolchains
-    
-                   echo "Downloading Proton Clang..."
-                  wget -q https://github.com/kdrag0n/proton-clang/archive/refs/heads/master.zip -O proton-clang.zip
-                  unzip -q proton-clang.zip
-                  mv proton-clang-master proton-clang
-                  rm proton-clang.zip
-                  PROTON_CLANG_PATH="$HOME/toolchains/proton-clang/bin"
-                  echo "PROTON_CLANG_PATH=$PROTON_CLANG_PATH" >> $GITHUB_ENV
-                  echo "PATH=$PROTON_CLANG_PATH:$PATH" >> $GITHUB_ENV
-                  echo "Proton Clang version:"
-                  $PROTON_CLANG_PATH/clang --version | head -n2
-                  echo "✓ Proton Clang setup complete"
-  
+
     - name: Build Kernel
-      if: env.PROTON_CLANG_PATH != ''
       run: |
-         echo "Configuring build environment for Proton Clang..."
-         sudo ln -sf ${{ env.PROTON_CLANG_PATH }}/aarch64-linux-gnu-ld /usr/bin/aarch64-linux-gnu-ld 2>/dev/null || true
-         sudo ln -sf ${{ env.PROTON_CLANG_PATH }}/ld.lld /usr/bin/ld.lld 2>/dev/null || true
-         echo "CLANG_PATH=${{ env.PROTON_CLANG_PATH }}/clang" >> $GITHUB_ENV
-         echo "CLANG_BIN=${{ env.PROTON_CLANG_PATH }}" >> $GITHUB_ENV
-         echo $PATH
-         clang -v
-         cd android
-         BUILD_CONFIG="${{ inputs.BUILD_CONFIG }}" build/build.sh 2>&1 | tee build.log
-    # Check if the out directory consist of target kernel image
-    - name: Setup kernel
-      continue-on-error: true
+        cd kernel_build
+        
+        # Set environment variables for build
+        export ARCH=arm64
+        export SUBARCH=arm64
+        export KBUILD_BUILD_USER="GitHub-Actions"
+        export KBUILD_BUILD_HOST="GitHub"
+        
+        # Determine number of parallel jobs
+        JOBS=$(($(nproc --all) * 2))
+        
+        echo "Starting kernel build with $JOBS parallel jobs..."
+        echo "Build config: ${{ inputs.BUILD_CONFIG }}"
+        
+        # Start build with tee for logging
+        time BUILD_CONFIG="${{ inputs.BUILD_CONFIG }}" \
+          build/build.sh -j$JOBS 2>&1 | tee build.log
+        
+        # Check if build was successful
+        if [ $? -eq 0 ]; then
+          echo "✅ Kernel build completed successfully!"
+        else
+          echo "❌ Kernel build failed!"
+          exit 1
+        fi
+
+    - name: Find and Collect Build Artifacts
       run: |
-        mkdir -p android/kernelbuild
-        mkdir -p android/modulebuild
-        cp -nf $(find android -name '${{ inputs.KERNEL_IMAGE_NAME }}') android/kernelbuild/ 2>/dev/null
-        cp -nf $(find android -name '${{ inputs.KERNEL_IMAGE_NAME }}.gz') android/kernelbuild/ 2>/dev/null
-        cp -nf $(find android -name '${{ inputs.KERNEL_IMAGE_NAME }}.lz4') android/kernelbuild/ 2>/dev/null
-    # Upload the release, if build is successful
-    - name: Upload to Release
-      uses: softprops/action-gh-release@v1
+        mkdir -p artifacts
+        
+        # Find kernel image
+        echo "Searching for kernel image: ${{ inputs.KERNEL_IMAGE_NAME }}"
+        
+        # Search in common output directories
+        find kernel_build -type f -name "${{ inputs.KERNEL_IMAGE_NAME }}" 2>/dev/null | while read -r file; do
+          echo "Found: $file"
+          cp -v "$file" artifacts/
+        done
+        
+        # Also search for common compressed variants
+        for ext in "" ".gz" ".lz4" ".xz" ".zst"; do
+          find kernel_build -type f -name "${{ inputs.KERNEL_IMAGE_NAME }}${ext}" 2>/dev/null | while read -r file; do
+            echo "Found: $file"
+            cp -v "$file" artifacts/
+          done
+        done
+        
+        # Copy build log
+        cp -v kernel_build/build.log artifacts/ 2>/dev/null || true
+        
+        # Copy other important artifacts
+        find kernel_build -type f -name "*.dtb" 2>/dev/null | head -5 | while read -r file; do
+          cp -v "$file" artifacts/
+        done
+        
+        # List collected artifacts
+        echo "📦 Collected artifacts:"
+        ls -la artifacts/
+
+    - name: Create AnyKernel3 Zip
+      if: inputs.ANYKERNEL3 == true
+      run: |
+        # This is a template - you'll need to implement based on your AnyKernel3 structure
+        echo "AnyKernel3 build requested"
+        echo "Note: You need to set up AnyKernel3 template in your repository"
+        
+        # Example structure (customize according to your needs):
+        # if [ -d "anykernel3" ]; then
+        #   cp artifacts/Image.gz anykernel3/
+        #   cd anykernel3
+        #   zip -r9 kernel-anykernel3.zip * -x .git README.md *placeholder
+        #   mv kernel-anykernel3.zip ../artifacts/
+        # fi
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
       with:
-        files: |
-          android/kernelbuild/${{ inputs.KERNEL_IMAGE_NAME }}
-          android/kernelbuild/${{ inputs.KERNEL_IMAGE_NAME }}.gz
-          android/kernelbuild/${{ inputs.KERNEL_IMAGE_NAME }}.lz4
-        name: Android Kernel Release | ${{ github.run_id }}
-        tag_name: ${{ github.run_id }}
+        name: kernel-build-${{ github.run_id }}
+        path: artifacts/
+        retention-days: 7
+
+    - name: Create GitHub Release
+      if: success()
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: build-${{ github.run_id }}
+        name: "Kernel Build #${{ github.run_id }}"
         body: |
           ## Build Information
-          Manifest: ${{ inputs.MANIFEST_URL }}/tree/${{ inputs.MANIFEST_BRANCH }}
+          - **Manifest**: [${{ inputs.MANIFEST_URL }}](${{ inputs.MANIFEST_URL }}) (branch: `${{ inputs.MANIFEST_BRANCH }}`)
+          - **Build Config**: `${{ inputs.BUILD_CONFIG }}`
+          - **Target Image**: `${{ inputs.KERNEL_IMAGE_NAME }}`
+          - **AnyKernel3**: ${{ inputs.ANYKERNEL3 }}
+          - **Build Date**: $(date -u)
+          
+          ## Artifacts
+          See attached artifacts for build outputs.
+        draft: false
+        prerelease: false
+        files: artifacts/*
