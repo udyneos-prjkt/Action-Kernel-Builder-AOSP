@@ -71,7 +71,7 @@ jobs:
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
       with:
-        swap-size-gb: 16
+        swap-size-gb: 20
 
     - name: Install Repo Tool
       run: |
@@ -178,9 +178,9 @@ jobs:
         cp -v kernel_build/build.log artifacts/ 2>/dev/null || true
         
         # Copy other important artifacts
-        find kernel_build -type f -name "*.dtb" 2>/dev/null | head -5 | while read -r file; do
-          cp -v "$file" artifacts/
-        done
+        #find kernel_build -type f -name "*.dtb" 2>/dev/null | head -5 | while read -r file; do
+        #  cp -v "$file" artifacts/
+        #done
         
         # List collected artifacts
         echo "📦 Collected artifacts:"
@@ -218,6 +218,7 @@ jobs:
         name: "Kernel Build #${{ github.run_id }}"
         body: |
           ## Build Information
+          - **Builder Version**: Beta-v1.1
           - **Manifest**: [${{ inputs.MANIFEST_URL }}](${{ inputs.MANIFEST_URL }}) (branch: `${{ inputs.MANIFEST_BRANCH }}`)
           - **Build Config**: `${{ inputs.BUILD_CONFIG }}`
           - **Target Image**: `${{ inputs.KERNEL_IMAGE_NAME }}`
