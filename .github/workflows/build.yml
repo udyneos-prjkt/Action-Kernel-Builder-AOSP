@@ -7,10 +7,6 @@ on:
         description: 'Kernel Manifest'
         required: true
         default: 'https://github.com/udyneos-prjkt/android_kernel-manifest'
-      BOOT_SOURCE:
-        description: 'BOOT Source'
-        required: true
-        default: 'https://github.com/udyneos-prjkt/android_kernel-manifest.img'
       MANIFEST_BRANCH:
         description: 'Kernel Manifest Branch'
         required: true
@@ -156,20 +152,7 @@ jobs:
           echo "❌ Kernel build failed!"
           exit 1
         fi
-    - name: Make boot image
-      run: |
-        cd kernel_build
-        wget -O boot-source.img ${{ inputs.BOOT_SOURCE }}
-        tools/unpack_bootimg.py --boot_img boot-source.img
-        cp kernel_build/out/arch/arm64/boot/${{ inputs.KERNEL_IMAGE_NAME } out/kernel
-        tools/mkbootimg.py mkbootimg -o boot.img
-        if [ -f boot.img ]; then
-            echo "Boot Image is already"
-        else
-            echo "Boot image is empty"
-            exit 1
-        fi
-
+        
     - name: Find and Collect Build Artifacts
       run: |
         mkdir -p artifacts
