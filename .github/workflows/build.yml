@@ -6,15 +6,15 @@ on:
       MANIFEST_URL:
         description: 'Kernel Manifest'
         required: true
-        default: 'https://github.com/cd-Crypton/android_kernel-manifest'
+        default: 'https://github.com/udyneos-prjkt/android_kernel-manifest'
       MANIFEST_BRANCH:
         description: 'Kernel Manifest Branch'
         required: true
-        default: 'realme/sm6225'
+        default: 'realme/sm4250'
       BUILD_CONFIG:
         description: 'Customized build.config file'
         required: true
-        default: 'sm6225/build.config.sm6225'
+        default: 'sm4250/build.config.sm4250'
       KERNEL_IMAGE_NAME:
         description: 'Image, Image.gz, Image.gz-dtb, etc.'
         required: true
@@ -28,7 +28,7 @@ on:
 jobs:
   build:
     name: Build Kernel by ${{ github.actor }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: github.event.repository.owner.id == github.event.sender.id
     permissions:
       contents: write
