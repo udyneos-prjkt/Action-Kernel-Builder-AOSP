@@ -14,7 +14,7 @@ on:
       BUILD_CONFIG:
         description: 'Customized build.config file'
         required: true
-        default: 'kernel/realme/RMX2195/build.config.sm4250'
+        default: 'sm4250-kernel/build.config.sm4250'
       KERNEL_IMAGE_NAME:
         description: 'Image, Image.gz, Image.gz-dtb, etc.'
         required: true
@@ -132,8 +132,8 @@ jobs:
         # Set environment variables for build
         export ARCH=arm64
         export SUBARCH=arm64
-        export KBUILD_BUILD_USER="GitHub-Actions"
-        export KBUILD_BUILD_HOST="GitHub"
+        export KBUILD_BUILD_USER="mnrdnn"
+        export KBUILD_BUILD_HOST="GitHub-Action"
         
         # Determine number of parallel jobs
         JOBS=$(($(nproc --all) * 2))
@@ -219,11 +219,12 @@ jobs:
         body: |
           ## Build Information
           - **Builder Version**: Beta-v1.1
-          - **Manifest**: [manifests](${{ inputs.MANIFEST_URL }}) (branch: `${{ inputs.MANIFEST_BRANCH }}`)
+          - **Manifest**: [manifests](${{ inputs.MANIFEST_URL }}) 
+          - **Branch**: `${{ inputs.MANIFEST_BRANCH }}`
           - **Build Config**: `${{ inputs.BUILD_CONFIG }}`
           - **Target Image**: `${{ inputs.KERNEL_IMAGE_NAME }}`
           - **AnyKernel3**: ${{ inputs.ANYKERNEL3 }}
-          -
+          
           
           ## Artifacts
           See attached artifacts for build outputs.
