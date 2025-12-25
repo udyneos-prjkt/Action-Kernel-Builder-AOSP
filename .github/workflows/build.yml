@@ -14,7 +14,7 @@ on:
       BUILD_CONFIG:
         description: 'Customized build.config file'
         required: true
-        default: 'sm4250/build.config.sm4250'
+        default: 'kernel/realme/RMX2195/build.config.sm4250'
       KERNEL_IMAGE_NAME:
         description: 'Image, Image.gz, Image.gz-dtb, etc.'
         required: true
@@ -194,12 +194,12 @@ jobs:
         echo "Note: You need to set up AnyKernel3 template in your repository"
         
         # Example structure (customize according to your needs):
-        # if [ -d "anykernel3" ]; then
-        #   cp artifacts/Image.gz anykernel3/
-        #   cd anykernel3
-        #   zip -r9 kernel-anykernel3.zip * -x .git README.md *placeholder
-        #   mv kernel-anykernel3.zip ../artifacts/
-        # fi
+         if [ -d "Anykernel3" ]; then
+           cp artifacts/Image.gz anykernel3/
+           cd anykernel3
+           zip -r9 kernel-anykernel3.zip * -x .git README.md *placeholder
+           mv kernel-anykernel3.zip ../artifacts/
+         fi
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
@@ -219,11 +219,11 @@ jobs:
         body: |
           ## Build Information
           - **Builder Version**: Beta-v1.1
-          - **Manifest**: [${{ inputs.MANIFEST_URL }}](${{ inputs.MANIFEST_URL }}) (branch: `${{ inputs.MANIFEST_BRANCH }}`)
+          - **Manifest**: [manifests](${{ inputs.MANIFEST_URL }}) (branch: `${{ inputs.MANIFEST_BRANCH }}`)
           - **Build Config**: `${{ inputs.BUILD_CONFIG }}`
           - **Target Image**: `${{ inputs.KERNEL_IMAGE_NAME }}`
           - **AnyKernel3**: ${{ inputs.ANYKERNEL3 }}
-          - **Build Date**: $(date -u)
+          -
           
           ## Artifacts
           See attached artifacts for build outputs.
