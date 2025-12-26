@@ -29,6 +29,10 @@ on:
         type: boolean
         required: false
         default: true
+      LTO:
+        description: 'full,thin,none'
+        required: false
+        default: 'none'
 
 jobs:
   build:
@@ -134,9 +138,10 @@ jobs:
         export SUBARCH=arm64
         export KBUILD_BUILD_USER="mnrdnn"
         export KBUILD_BUILD_HOST="GitHub-Action"
+        export LTO=${{ inputs.LTO}}
         
         # Determine number of parallel jobs
-        JOBS=$(($(nproc --all) * 2))
+        JOBS=$(($(nproc --all) * 4))
         
         echo "Starting kernel build with $JOBS parallel jobs..."
         echo "Build config: ${{ inputs.BUILD_CONFIG }}"
@@ -188,10 +193,11 @@ jobs:
 
     - name: Create AnyKernel3 Zip
       if: inputs.ANYKERNEL3 == true
+      continue-on-error: true
       run: |
          cd kernel_build
          if [ -d "Anykernel3" ]; then
-           cp artifacts/Image.gz anykernel3/
+           cp ../artifacts/Image.gz anykernel3/
            cd anykernel3
            zip -r9 kernel-anykernel3.zip * -x .git README.md *placeholder
            mv kernel-anykernel3.zip ../../artifacts
