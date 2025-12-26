@@ -69,7 +69,8 @@ jobs:
           git \
           zip \
           unzip \
-          kmod
+          kmod \
+          ccache
         sudo apt-get clean
 
     - name: Set Swap Space
@@ -216,7 +217,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: build-${{ github.run_id }}
+        tag_name: Build-${{ github.run_id }}
         name: "Kernel Build #${{ github.run_id }}"
         body: |
           ## Build Information
@@ -225,8 +226,10 @@ jobs:
           - **Branch**: `${{ inputs.MANIFEST_BRANCH }}`
           - **Build Config**: `${{ inputs.BUILD_CONFIG }}`
           - **Target Image**: `${{ inputs.KERNEL_IMAGE_NAME }}`
-          - **AnyKernel3**: ${{ inputs.ANYKERNEL3 }}
-          
+          - **AnyKernel3**: `${{ inputs.ANYKERNEL3 }}`
+          - **LTO**: `${{ inputs.LTO}}`
+
+          - **© [mnrdnn](https://t.me/mnrdnn)**
           
           ## Artifacts
           See attached artifacts for build outputs.
