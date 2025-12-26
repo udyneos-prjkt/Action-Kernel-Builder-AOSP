@@ -71,7 +71,7 @@ jobs:
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
       with:
-        swap-size-gb: 20
+        swap-size-gb: 25
 
     - name: Install Repo Tool
       run: |
@@ -122,7 +122,7 @@ jobs:
       run: |
         cd kernel_build
         if [ -f "build/build.sh" ]; then
-          BUILD_CONFIG="${{ inputs.BUILD_CONFIG }}" build/build.sh --make clean || true
+          BUILD_CONFIG="${{ inputs.BUILD_CONFIG }}" build/build.sh mrproper || true
         fi
 
     - name: Build Kernel
@@ -178,9 +178,9 @@ jobs:
         cp -v kernel_build/build.log artifacts/ 2>/dev/null || true
         
         # Copy other important artifacts
-        #find kernel_build -type f -name "*.dtb" 2>/dev/null | head -5 | while read -r file; do
-        #  cp -v "$file" artifacts/
-        #done
+        find kernel_build -type f -name "*.dtb" "*.dtbo" "*.ko" 2>/dev/null | head -5 | while read -r file; do
+          cp -v "$file" artifacts/
+        done
         
         # List collected artifacts
         echo "📦 Collected artifacts:"
@@ -189,16 +189,12 @@ jobs:
     - name: Create AnyKernel3 Zip
       if: inputs.ANYKERNEL3 == true
       run: |
-        # This is a template - you'll need to implement based on your AnyKernel3 structure
-        echo "AnyKernel3 build requested"
-        echo "Note: You need to set up AnyKernel3 template in your repository"
-        
-        # Example structure (customize according to your needs):
+         cd kernel_build
          if [ -d "Anykernel3" ]; then
            cp artifacts/Image.gz anykernel3/
            cd anykernel3
            zip -r9 kernel-anykernel3.zip * -x .git README.md *placeholder
-           mv kernel-anykernel3.zip ../artifacts/
+           mv kernel-anykernel3.zip ../../artifacts
          fi
 
     - name: Upload Artifacts
@@ -218,7 +214,7 @@ jobs:
         name: "Kernel Build #${{ github.run_id }}"
         body: |
           ## Build Information
-          - **Builder Version**: Beta-v1.1
+          - **Builder Version**: Stable-v1.1
           - **Manifest**: [manifests](${{ inputs.MANIFEST_URL }}) 
           - **Branch**: `${{ inputs.MANIFEST_BRANCH }}`
           - **Build Config**: `${{ inputs.BUILD_CONFIG }}`
@@ -230,4 +226,7 @@ jobs:
           See attached artifacts for build outputs.
         draft: false
         prerelease: false
-        files: artifacts/*
+        files: |
+           artifacts/*.img
+           artifacts/*.zip
+           artifacts/*.log
