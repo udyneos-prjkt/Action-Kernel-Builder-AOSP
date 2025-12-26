@@ -198,9 +198,9 @@ jobs:
          cd kernel_build
          if [ -d "Anykernel3" ]; then
            cp ../artifacts/Image.gz anykernel3/
-           cd anykernel3
-           zip -r9 kernel-anykernel3.zip * -x .git README.md *placeholder
-           mv kernel-anykernel3.zip ../../artifacts
+           cd Anykernel3
+           zip -r9 Flashable-Kernel-Anykernel3.zip * -x .git README.md *placeholder
+           mv Flashable-Kernel-Anykernel3.zip ../../artifacts
          fi
 
     - name: Upload Artifacts
