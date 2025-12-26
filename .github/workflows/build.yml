@@ -126,7 +126,7 @@ jobs:
       run: |
         cd kernel_build
         if [ -f "build/build.sh" ]; then
-          BUILD_CONFIG="${{ inputs.BUILD_CONFIG }}" build/build.sh mrproper || true
+          BUILD_CONFIG="${{ inputs.BUILD_CONFIG }}" build/build.sh clean  || true
         fi
 
     - name: Build Kernel
@@ -197,7 +197,7 @@ jobs:
       run: |
          cd kernel_build
          if [ -d "Anykernel3" ]; then
-           cp ../artifacts/Image.gz anykernel3/
+           cp ../artifacts/Image.gz Anykernel3/
            cd Anykernel3
            zip -r9 Flashable-Kernel-Anykernel3.zip * -x .git README.md *placeholder
            mv Flashable-Kernel-Anykernel3.zip ../../artifacts
@@ -233,6 +233,6 @@ jobs:
         draft: false
         prerelease: false
         files: |
-           artifacts/*.img
+           artifacts/*.gz
            artifacts/*.zip
            artifacts/*.log
