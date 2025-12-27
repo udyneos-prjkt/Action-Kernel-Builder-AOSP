@@ -35,8 +35,12 @@ on:
         default: true
       LTO:
         description: 'full,thin,none'
+        type: choice
         required: false
-        default: 'none'
+        options:
+        - none
+        - full
+        - thin
 
 jobs:
   build:
