@@ -10,22 +10,26 @@ on:
       MANIFEST_BRANCH:
         description: 'Kernel Manifest Branch'
         required: true
-        default: 'realme/sm4250'
+        default: 'lancelot'
+      KDIR:
+        description: 'Kernel DIR'
+        required: true
+        default: 'lancelot'
       BUILD_CONFIG:
         description: 'Customized build.config file'
         required: true
-        default: 'sm4250-kernel/build.config.sm4250'
+        default: 'build.config.lancelot'
       KERNEL_IMAGE_NAME:
         description: 'Image, Image.gz, Image.gz-dtb, etc.'
         required: true
-        default: 'Image.gz'
+        default: 'Image.gz-dtb'
       ANYKERNEL3:
         description: 'Make flashable AnyKernel3 zip'
         type: boolean
         required: false
         default: false
-      MAKE_CLEAN:
-        description: 'Run make clean before building'
+      KSU:
+        description: 'Setup KernelSU'
         type: boolean
         required: false
         default: true
@@ -121,14 +125,16 @@ jobs:
               --no-clone-bundle \
               -j$(nproc --all)
           }
-
-    - name: Clean Build Directory
-      if: inputs.MAKE_CLEAN == true
+    - name: Setup ProtonClang 13
       run: |
         cd kernel_build
-        if [ -f "build/build.sh" ]; then
-          BUILD_CONFIG="${{ inputs.BUILD_CONFIG }}" build/build.sh clean  || true
-        fi
+        git clone https://github.com/kdrag0n/proton-clang.git clang --depth=1
+
+    - name: Setup KernelSU
+      if: inputs.KSU == true
+      run: |
+        cd Kernel_build/${{ inputs.KDIR }}
+        curl -LSs ‘https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh’ | bash -s builtin
 
     - name: Build Kernel
       run: |
@@ -145,10 +151,10 @@ jobs:
         JOBS=$(($(nproc --all) * 4))
         
         echo "Starting kernel build with $JOBS parallel jobs..."
-        echo "Build config: ${{ inputs.BUILD_CONFIG }}"
+        echo "Build config: ${{ inputs.KDIR }}/${{ inputs.BUILD_CONFIG }}"
         
         # Start build with tee for logging
-        time BUILD_CONFIG="${{ inputs.BUILD_CONFIG }}" \
+        time BUILD_CONFIG="${{ inputs.KDIR }}/${{ inputs.BUILD_CONFIG }}" \
           build/build.sh -j$JOBS 2>&1 | tee build.log
         
         # Check if build was successful
@@ -173,7 +179,7 @@ jobs:
         done
         
         # Also search for common compressed variants
-        for ext in "" ".gz" ".lz4" ".xz" ".zst"; do
+        for ext in "" ".gz" ".lz4" ".xz" ".zst" ".gz-dtb"; do
           find kernel_build -type f -name "${{ inputs.KERNEL_IMAGE_NAME }}${ext}" 2>/dev/null | while read -r file; do
             echo "Found: $file"
             cp -v "$file" artifacts/
@@ -221,7 +227,7 @@ jobs:
         name: "Kernel Build #${{ github.run_id }}"
         body: |
           ## Build Information
-          - **Builder Version**: Stable-v1.1
+          - **Builder Version**: StabilxKernelSU
           - **Manifest**: [manifests](${{ inputs.MANIFEST_URL }}) 
           - **Branch**: `${{ inputs.MANIFEST_BRANCH }}`
           - **Build Config**: `${{ inputs.BUILD_CONFIG }}`
@@ -229,7 +235,7 @@ jobs:
           - **AnyKernel3**: `${{ inputs.ANYKERNEL3 }}`
           - **LTO**: `${{ inputs.LTO}}`
 
-          - **© [mnrdnn](https://t.me/mnrdnn)**
+          - ** [mnrdnn](https://t.me/mnrdnn)**
           
           ## Artifacts
           See attached artifacts for build outputs.
