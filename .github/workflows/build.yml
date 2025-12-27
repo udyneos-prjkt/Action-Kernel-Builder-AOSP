@@ -133,7 +133,7 @@ jobs:
     - name: Setup KernelSU
       if: inputs.KSU == true
       run: |
-        cd Kernel_build/${{ inputs.KDIR }}
+        cd kernel_build/${{ inputs.KDIR }}
         curl -LSs ‘https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh’ | bash -s builtin
 
     - name: Build Kernel
