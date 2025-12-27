@@ -112,7 +112,6 @@ jobs:
         echo "Syncing repositories..."
         repo sync \
           --no-tags \
-          --depth=1 \
           -j$(nproc --all) || {
             echo "First sync failed, retrying with force sync..."
             repo sync \
