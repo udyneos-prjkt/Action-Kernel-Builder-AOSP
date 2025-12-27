@@ -116,6 +116,7 @@ jobs:
         echo "Syncing repositories..."
         repo sync \
           --no-tags \
+          --no-clone-bundle \
           -j$(nproc --all) || {
             echo "First sync failed, retrying with force sync..."
             repo sync \
@@ -124,12 +125,18 @@ jobs:
               --no-clone-bundle \
               -j$(nproc --all)
           }
+    - name: Clone Kernel
+      run: |
+        cd kernel_build
+        rm -rf ${{ inputs.KDIR }}
+        git clone https://github.com/udyneos-prjkt/android_kernel_xiaomi_lancelot ${{ inputs.KDIR }} -b sukisu --depth=1
      
     - name: Setup KernelSU
       if: inputs.KSU == true
       run: |
         cd kernel_build/${{ inputs.KDIR }}
-        curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s builtin
+        rm -rf KernelSU
+        curl -LSs "https://raw.githubusercontent.com/RapliVx/KernelSU/1d52338278a0f29829098d73ee11719a5360484f/kernel/setup.sh" | bash -s master
 
     - name: Build Kernel
       run: |
