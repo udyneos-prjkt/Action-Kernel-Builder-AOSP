@@ -106,17 +106,13 @@ jobs:
         echo "Initializing repo with manifest: ${{ inputs.MANIFEST_URL }}"
         repo init \
           --depth=1 \
-          --no-repo-verify \
           -u "${{ inputs.MANIFEST_URL }}" \
           -b "${{ inputs.MANIFEST_BRANCH }}"
         
         echo "Syncing repositories..."
         repo sync \
-          --current-branch \
           --no-tags \
-          --no-clone-bundle \
-          --optimized-fetch \
-          --prune \
+          --depth=1 \
           -j$(nproc --all) || {
             echo "First sync failed, retrying with force sync..."
             repo sync \
