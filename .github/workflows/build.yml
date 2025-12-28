@@ -10,11 +10,11 @@ on:
       MANIFEST_BRANCH:
         description: 'Kernel Manifest Branch'
         required: true
-        default: 'realme/sm4250'
+        default: 'realme/RMX2195'
       BUILD_CONFIG:
         description: 'Customized build.config file'
         required: true
-        default: 'sm4250-kernel/build.config.sm4250'
+        default: 'kernel/build.config.sm4250'
       KERNEL_IMAGE_NAME:
         description: 'Image, Image.gz, Image.gz-dtb, etc.'
         required: true
@@ -29,10 +29,10 @@ on:
         type: boolean
         required: false
         default: true
-      LTO:
-        description: 'full,thin,none'
+      CMD:
+        description: 'LTO="none" | USE_CCACHE=1'
         required: false
-        default: 'none'
+        default: 'USE_CCACHE=1'
 
 jobs:
   build:
@@ -89,15 +89,15 @@ jobs:
 
     - name: Configure Git
       run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
+        git config --global user.name "mnrdnn"
+        git config --global user.email "mnrdnn@github.com"
         git config --global color.ui false
         git config --global core.compression 9
 
     - name: Initialize and Sync Repository
       run: |
-        mkdir -p kernel_build
-        cd kernel_build
+        mkdir -p build
+        cd build
         
         echo "Initializing repo with manifest: ${{ inputs.MANIFEST_URL }}"
         repo init \
@@ -125,21 +125,22 @@ jobs:
     - name: Clean Build Directory
       if: inputs.MAKE_CLEAN == true
       run: |
-        cd kernel_build
+        cd build
         if [ -f "build/build.sh" ]; then
           BUILD_CONFIG="${{ inputs.BUILD_CONFIG }}" build/build.sh clean  || true
         fi
 
     - name: Build Kernel
       run: |
-        cd kernel_build
+        cd build
         
         # Set environment variables for build
+        ccache -M 5G > /dev/null
         export ARCH=arm64
         export SUBARCH=arm64
         export KBUILD_BUILD_USER="mnrdnn"
         export KBUILD_BUILD_HOST="GitHub-Action"
-        export LTO=${{ inputs.LTO}}
+        export ${{ inputs.CMD}}
         
         # Determine number of parallel jobs
         JOBS=$(($(nproc --all) * 4))
@@ -167,24 +168,24 @@ jobs:
         echo "Searching for kernel image: ${{ inputs.KERNEL_IMAGE_NAME }}"
         
         # Search in common output directories
-        find kernel_build -type f -name "${{ inputs.KERNEL_IMAGE_NAME }}" 2>/dev/null | while read -r file; do
+        find build -type f -name "${{ inputs.KERNEL_IMAGE_NAME }}" 2>/dev/null | while read -r file; do
           echo "Found: $file"
           cp -v "$file" artifacts/
         done
         
         # Also search for common compressed variants
         for ext in "" ".gz" ".lz4" ".xz" ".zst"; do
-          find kernel_build -type f -name "${{ inputs.KERNEL_IMAGE_NAME }}${ext}" 2>/dev/null | while read -r file; do
+          find build -type f -name "${{ inputs.KERNEL_IMAGE_NAME }}${ext}" 2>/dev/null | while read -r file; do
             echo "Found: $file"
             cp -v "$file" artifacts/
           done
         done
         
         # Copy build log
-        cp -v kernel_build/build.log artifacts/ 2>/dev/null || true
+        cp -v build/build.log artifacts/ 2>/dev/null || true
         
         # Copy other important artifacts
-        find kernel_build -type f -name "*.dtb" "*.dtbo" "*.ko" 2>/dev/null | head -5 | while read -r file; do
+        find build -type f -name "*.dtb" "*.dtbo" "*.ko" 2>/dev/null | head -5 | while read -r file; do
           cp -v "$file" artifacts/
         done
         
@@ -196,12 +197,12 @@ jobs:
       if: inputs.ANYKERNEL3 == true
       continue-on-error: true
       run: |
-         cd kernel_build
+         cd build
          if [ -d "Anykernel3" ]; then
-           cp ../artifacts/Image.gz Anykernel3/
+           cp ../artifacts/${{ inputs.KERNEL_IMAGE_NAME }} Anykernel3/
            cd Anykernel3
-           zip -r9 Flashable-Kernel-Anykernel3.zip * -x .git README.md *placeholder
-           mv Flashable-Kernel-Anykernel3.zip ../../artifacts
+           zip -r9 Flashable-Anykernel3.zip * -x .git README.md *placeholder
+           mv Flashable-Anykernel3.zip ../../artifacts
          fi
 
     - name: Upload Artifacts
@@ -221,7 +222,7 @@ jobs:
         name: "Kernel Build #${{ github.run_id }}"
         body: |
           ## Build Information
-          - **Builder Version**: Stable-v1.1
+          - **Builder Version**: Stable-v1.2
           - **Manifest**: [manifests](${{ inputs.MANIFEST_URL }}) 
           - **Branch**: `${{ inputs.MANIFEST_BRANCH }}`
           - **Build Config**: `${{ inputs.BUILD_CONFIG }}`
@@ -229,13 +230,13 @@ jobs:
           - **AnyKernel3**: `${{ inputs.ANYKERNEL3 }}`
           - **LTO**: `${{ inputs.LTO}}`
 
-          - **© [mnrdnn](https://t.me/mnrdnn)**
+          - ** [mnrdnn](https://t.me/mnrdnn)**
           
-          ## Artifacts
+          ## Changelog
           See attached artifacts for build outputs.
         draft: false
         prerelease: false
         files: |
-           artifacts/*.gz
+           artifacts/${{ inputs.KERNEL_IMAGE_NAME }}
            artifacts/*.zip
            artifacts/*.log
