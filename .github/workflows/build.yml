@@ -30,9 +30,9 @@ on:
         required: false
         default: true
       CMD:
-        description: 'LTO="none" | USE_CCACHE=1'
+        description: 'Build Extra CMD '
         required: false
-        default: 'USE_CCACHE=1'
+        default: 'LTO=none | USE_CCACHE=1 | LLVM_IAS=1'
 
 jobs:
   build:
@@ -135,12 +135,15 @@ jobs:
         cd build
         
         # Set environment variables for build
-        ccache -M 5G > /dev/null
         export ARCH=arm64
         export SUBARCH=arm64
         export KBUILD_BUILD_USER="mnrdnn"
         export KBUILD_BUILD_HOST="GitHub-Action"
-        export ${{ inputs.CMD}}
+        IFS=' | ' read -ra cmds<<< "${{ inputs.CMD }}"
+        for cmdx in "${cmds[@]}"; do
+               export "$cmdx"
+         done
+         ccache -M 5G > /dev/null
         
         # Determine number of parallel jobs
         JOBS=$(($(nproc --all) * 4))
@@ -228,15 +231,16 @@ jobs:
           - **Build Config**: `${{ inputs.BUILD_CONFIG }}`
           - **Target Image**: `${{ inputs.KERNEL_IMAGE_NAME }}`
           - **AnyKernel3**: `${{ inputs.ANYKERNEL3 }}`
-          - **LTO**: `${{ inputs.LTO}}`
+          - **EXTRA CMD**: `${{ inputs.CMD}}`
 
-          - ** [mnrdnn](https://t.me/mnrdnn)**
+          - **Contact: [Telegram](https://t.me/mnrdnn)**
           
           ## Changelog
-          See attached artifacts for build outputs.
+          See Kernel Commit
         draft: false
         prerelease: false
         files: |
            artifacts/${{ inputs.KERNEL_IMAGE_NAME }}
            artifacts/*.zip
            artifacts/*.log
+           artifacts/*.dtb*
