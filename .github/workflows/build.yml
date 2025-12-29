@@ -24,7 +24,7 @@ on:
         type: boolean
         required: false
         default: false
-      MAKE_CLEAN:
+      REL:
         description: 'Run make clean before building'
         type: boolean
         required: false
@@ -123,7 +123,6 @@ jobs:
           }
 
     - name: Clean Build Directory
-      if: inputs.MAKE_CLEAN == true
       run: |
         cd build
         if [ -f "build/build.sh" ]; then
@@ -216,13 +215,13 @@ jobs:
         retention-days: 7
 
     - name: Create GitHub Release
-      if: success()
+      if: inputs.REL == true
       uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: Build-${{ github.run_id }}
-        name: "Kernel Build #${{ github.run_id }}"
+        tag_name: Build-${{ inputs.MANIFEST_BRANCH }}
+        name: "Kernel Build - ${{ inputs.MANIFEST_BRANCH }}"
         body: |
           ## Build Information
           - **Builder Version**: Stable-v1.2
