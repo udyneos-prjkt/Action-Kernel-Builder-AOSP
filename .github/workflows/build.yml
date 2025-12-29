@@ -25,14 +25,14 @@ on:
         required: false
         default: false
       REL:
-        description: 'Run make clean before building'
+        description: 'Add to Release'
         type: boolean
         required: false
         default: true
       CMD:
         description: 'Build Extra CMD '
         required: false
-        default: 'LTO=none | USE_CCACHE=1 | LLVM_IAS=1'
+        default: 'LTO=none | USE_CCACHE=1 | LLVM_IAS=0'
 
 jobs:
   build:
